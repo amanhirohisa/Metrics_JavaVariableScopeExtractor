@@ -14,7 +14,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 
 public class Main 
 {
-	public static final String VERSION = "1.1";
+	public static final String VERSION = "1.2";
 	public static final String COPYRIGHT = "(C) 2015 Hirohisa AMAN <aman@computer.org>";
 	
 	public static void main(String[] args) throws IOException 
@@ -171,7 +171,13 @@ public class Main
 			while ( !(node.getData() instanceof org.eclipse.jdt.core.dom.TypeDeclaration) ){
 				node = node.getParent();
 			}
-			scope.setBegin(aNode.getData().getStartPosition() + aNode.getData().getLength() + 1);
+			
+			int offset = 1;
+			ArrayList<TreeNode> brothers = node.getChildren();
+			for ( int i = 0; brothers.get(i).getData() instanceof org.eclipse.jdt.core.dom.Javadoc; i++ ){
+				offset += brothers.get(i).getData().getLength();
+			}
+			scope.setBegin(node.getData().getStartPosition() + offset);
 			scope.setEnd(node.getData().getStartPosition() + node.getData().getLength());
 		}
 		else{
