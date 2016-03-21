@@ -5,8 +5,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Hashtable;
 import java.util.Iterator;
 
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -61,8 +63,12 @@ public class Main
 		System.err.println(" done.");
 		System.err.println();
 		
-		ASTParser parser = ASTParser.newParser(AST.JLS4);
+		ASTParser parser = ASTParser.newParser(AST.JLS8);
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
+		@SuppressWarnings("unchecked")
+		Hashtable<String, String> compilerOptions = JavaCore.getOptions();
+		compilerOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
+		parser.setCompilerOptions(compilerOptions);
 		parser.setSource(source.toString().toCharArray());
 		CompilationUnit unit = (CompilationUnit) parser.createAST(null);
 
