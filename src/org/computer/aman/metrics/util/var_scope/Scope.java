@@ -10,17 +10,19 @@ public class Scope
 	public static final int METHOD_ARGUMENT = 0;
 	public static final int LOCAL_VARIABLE = 1;
 	public static final int FIELD = 2;
-	
+
 	/**
 	 * 与えられた変数のスコープオブジェクトを生成する．
 	 * 
 	 * @param aVariableName 変数名
+	 * @param aVariableType 変数の型名
 	 */
-	public Scope(final String aVariableName)
+	public Scope(final String aVariableName, final String aVariableType)
 	{
-		variable = aVariableName;
+		variableName = aVariableName;
+		variableType = aVariableType;
 	}
-	
+
 	/**
 	 * スコープの開始位置（文字配列内の添字）を返す．
 	 * 
@@ -29,7 +31,7 @@ public class Scope
 	public int getBegin() {
 		return begin;
 	}
-	
+
 	/**
 	 * スコープの終了位置（文字配列内の添字）を返す．
 	 * 
@@ -44,8 +46,8 @@ public class Scope
 	 * 
 	 * @return　変数の種類を表す整数（各種類に対応する定数はこのクラスのクラス変数として用意されている）
 	 */
-	public int getType() {
-		return type;
+	public int getKind() {
+		return kind;
 	}
 
 	/**
@@ -53,10 +55,18 @@ public class Scope
 	 * 
 	 * @return 変数名
 	 */
-	public String getVariable() {
-		return variable;
+	public String getName() {
+		return variableName;
 	}
-	
+
+	/**
+	 * 管理している変数の型名を返す．
+	 * @return 変数の型名
+	 */
+	public String getType() {
+		return variableType;
+	}
+
 	/**
 	 * スコープの開始位置（文字配列内の添字） を設定する．
 	 * 
@@ -74,19 +84,20 @@ public class Scope
 	public void setEnd(final int anEnd) {
 		end = anEnd;
 	}
-	
+
 	/**
 	 * 変数の種類（メソッドの引数，ローカル変数，フィールド）を設定する．
 	 * 各種類に対応する定数はこのクラスのクラス変数として用意されている．
 	 * 
-	 * @param aType 変数の種類を表す整数
+	 * @param aKind 変数の種類を表す整数
 	 */
-	public void setType(final int aType) {
-		type = aType;
+	public void setKind(final int aKind) {
+		kind = aKind;
 	}
 
 	private int begin;
 	private int end;
-	private int type;
-	private String variable;
+	private int kind;
+	private String variableName;
+	private String variableType;
 }

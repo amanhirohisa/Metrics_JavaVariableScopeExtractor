@@ -16,15 +16,15 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 
 public class Main 
 {
-	public static final String VERSION = "1.2";
-	public static final String COPYRIGHT = "(C) 2015 Hirohisa AMAN <aman@computer.org>";
-	
+	public static final String VERSION = "2.0";
+	public static final String COPYRIGHT = "(C) 2015-2017 Hirohisa AMAN <aman@computer.org>";
+
 	public static void main(String[] args) throws IOException 
 	{
 		System.err.println("This is JavaVariableScopeExtractor ver." + VERSION + ".");
 		System.err.println(COPYRIGHT);
 		System.err.println();
-		
+
 		boolean debugMode = false;
 		String fileName = null;
 		for ( int i = 0; i < args.length; i++ ){
@@ -46,11 +46,11 @@ public class Main
 		if ( fileName == null ){
 			printError("No Java source file is specified!" + "\n" + "Specify the path of Java source file to be analyzed.");
 		}
-		
+
 		if ( debugMode ){
 			System.err.println("[debug mode]");
 		}
-		
+
 		System.err.print("Reading " + fileName + " ...");
 		BufferedReader reader = new BufferedReader(new FileReader(fileName));
 		String line = null;
@@ -62,7 +62,7 @@ public class Main
 		reader.close();
 		System.err.println(" done.");
 		System.err.println();
-		
+
 		ASTParser parser = ASTParser.newParser(AST.JLS8);
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
 		@SuppressWarnings("unchecked")
@@ -81,7 +81,7 @@ public class Main
 			System.out.println(" Method arguments, fields and local variables");
 			System.out.println("===========================================================");
 		}
-		
+
 		ArrayList<Scope> scopeList = new ArrayList<Scope>();
 		ArrayList<TreeNode> singleVariableDeclarationNodes = visitor.getListOfSingleVariableDeclarationNodes();
 		for (Iterator<TreeNode> iterator = singleVariableDeclarationNodes.iterator(); iterator.hasNext();) {
@@ -96,14 +96,14 @@ public class Main
 
 		Collections.sort(scopeList, new ScopeComparator());
 		for (Iterator<Scope> iterator = scopeList.iterator(); iterator.hasNext();) {
-			System.out.print(fileName + ",");
+			System.out.print(fileName + "\t");
 			Scope scope = iterator.next();
-			switch ( scope.getType() ){
+			switch ( scope.getKind() ){
 			case Scope.FIELD : System.out.print("F"); break;
 			case Scope.LOCAL_VARIABLE : System.out.print("L"); break;
 			case Scope.METHOD_ARGUMENT : System.out.print("M"); break;
 			}
-			System.out.println("," + scope.getVariable() + "," + unit.getLineNumber(scope.getBegin()) + "," + unit.getLineNumber(scope.getEnd()));			
+			System.out.println("\t" + scope.getName() + "\t" + scope.getType() + "\t" + unit.getLineNumber(scope.getBegin()) + "\t" + unit.getLineNumber(scope.getEnd()));			
 		}
 	}
 
@@ -117,7 +117,7 @@ public class Main
 	{
 		return aNode.getParent().getData() instanceof org.eclipse.jdt.core.dom.MethodDeclaration;
 	}
-	
+
 	/**
 	 * 与えられた VariableDeclarationFragment ノードがフィールド宣言かどうかを判定する．
 	 * @param aNode 判定対象の VariableDeclarationFragment ノード
@@ -136,16 +136,31 @@ public class Main
 	 */
 	private static Scope getVariableScopeForSingleVariableDeclarationNode( TreeNode aNode )
 	{
-		Scope scope = null;
+		String varName = null;
+		String varType = null;
 		for (Iterator<TreeNode> iterator = aNode.getChildren().iterator(); iterator.hasNext();) {
 			TreeNode treeNode = iterator.next();
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleType  
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.PrimitiveType
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.ParameterizedType  ) {
+				varType = treeNode.getData().toString();
+			}
 			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleName ) {
-				scope = new Scope(treeNode.getData().toString());			
-				break;
+				varName = treeNode.getData().toString();
+			}
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.Dimension ) {
+				varType += treeNode.getData().toString();
 			}
 		}
-		
-		scope.setType(isMethodArgument(aNode) ? Scope.METHOD_ARGUMENT : Scope.LOCAL_VARIABLE);
+
+		// 可変長引数の場合は配列と見なす
+		if ( aNode.getData().toString().indexOf("...") >= 0 ){
+			varType += "[]";
+		}
+
+		Scope scope = new Scope(varName, varType);
+
+		scope.setKind(isMethodArgument(aNode) ? Scope.METHOD_ARGUMENT : Scope.LOCAL_VARIABLE);
 
 		ArrayList<TreeNode> brothers = aNode.getParent().getChildren();
 		ASTNode node = brothers.get(brothers.size()-1).getData();
@@ -162,22 +177,41 @@ public class Main
 	 */
 	private static Scope getVariableScopeForDeclarationFragmentNode( TreeNode aNode )
 	{
-		Scope scope = null;
-		for (Iterator<TreeNode> iterator = aNode.getChildren().iterator(); iterator.hasNext();) {
+		String varType = null;
+		TreeNode parent = aNode.getParent();
+		for (Iterator<TreeNode> iterator = parent.getChildren().iterator(); iterator.hasNext();) {
 			TreeNode treeNode = iterator.next();
-			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleName ) {
-				scope = new Scope(treeNode.getData().toString());			
-				break;
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleType  
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.PrimitiveType 
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.ArrayType 
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.ParameterizedType ) {
+				varType = treeNode.getData().toString();
+			}
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.Dimension ) {
+				varType += treeNode.getData().toString();
 			}
 		}
 
+		String varName = null;
+		for (Iterator<TreeNode> iterator = aNode.getChildren().iterator(); iterator.hasNext();) {
+			TreeNode treeNode = iterator.next();
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleName ) {
+				varName = treeNode.getData().toString();
+			}
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.Dimension ) {
+				varType += treeNode.getData().toString();
+			}
+		}
+
+		Scope scope = new Scope(varName, varType);		
+
 		if ( isField(aNode) ){
-			scope.setType(Scope.FIELD);
+			scope.setKind(Scope.FIELD);
 			TreeNode node = aNode.getParent();
 			while ( !(node.getData() instanceof org.eclipse.jdt.core.dom.TypeDeclaration) ){
 				node = node.getParent();
 			}
-			
+
 			int offset = 1;
 			ArrayList<TreeNode> brothers = node.getChildren();
 			for ( int i = 0; brothers.get(i).getData() instanceof org.eclipse.jdt.core.dom.Javadoc; i++ ){
@@ -187,7 +221,7 @@ public class Main
 			scope.setEnd(node.getData().getStartPosition() + node.getData().getLength());
 		}
 		else{
-			scope.setType(Scope.LOCAL_VARIABLE );
+			scope.setKind(Scope.LOCAL_VARIABLE );
 			TreeNode node = aNode.getParent();
 			while ( !(node.getData() instanceof org.eclipse.jdt.core.dom.Block) &&
 					!(node.getData() instanceof org.eclipse.jdt.core.dom.ForStatement)){
@@ -198,7 +232,7 @@ public class Main
 			scope.setBegin(aNode.getData().getStartPosition() + aNode.getData().getLength() + 1);
 			scope.setEnd(lastNode.getStartPosition() + lastNode.getLength());
 		}
-		
+
 		return scope;
 	}
 
