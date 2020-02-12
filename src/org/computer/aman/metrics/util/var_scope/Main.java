@@ -16,8 +16,8 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 
 public class Main 
 {
-	public static final String VERSION = "2.0";
-	public static final String COPYRIGHT = "(C) 2015-2017 Hirohisa AMAN <aman@computer.org>";
+	public static final String VERSION = "3.0";
+	public static final String COPYRIGHT = "(C) 2015-2020 Hirohisa AMAN <aman@computer.org>";
 
 	public static void main(String[] args) throws IOException 
 	{
@@ -26,11 +26,15 @@ public class Main
 		System.err.println();
 
 		boolean debugMode = false;
+		boolean listMode = false;
 		String fileName = null;
 		for ( int i = 0; i < args.length; i++ ){
 			if ( args[i].startsWith("-") ){
 				if ( args[i].equals("-d") ){
 					debugMode = true;
+				}
+				else if ( args[i].equals("-l") ){
+					listMode = true;
 				}
 				else{
 					printError("Invalid option: " + args[i]);
@@ -40,70 +44,103 @@ public class Main
 				fileName = args[i];
 			}
 			else{
-				printError("Specify ONE source file!");
+				if ( listMode ){
+					printError("Specify ONE list of source files!");
+				}
+				else{
+					printError("Specify ONE source file!");					
+				}
 			}
 		}
 		if ( fileName == null ){
-			printError("No Java source file is specified!" + "\n" + "Specify the path of Java source file to be analyzed.");
+			if ( listMode ){
+				printError("No Java source file list is specified!" + "\n" + "Specify the path of list file containing Java source files to be analyzed.");
+			}
+			else{
+				printError("No Java source file is specified!" + "\n" + "Specify the path of Java source file to be analyzed.");				
+			}
 		}
 
 		if ( debugMode ){
 			System.err.println("[debug mode]");
 		}
 
-		System.err.print("Reading " + fileName + " ...");
-		BufferedReader reader = new BufferedReader(new FileReader(fileName));
-		String line = null;
-		StringBuffer source = new StringBuffer();
-		while ( (line = reader.readLine()) != null ){
-			source.append(line);
-			source.append("\n");
-		}
-		reader.close();
-		System.err.println(" done.");
-		System.err.println();
-
-		ASTParser parser = ASTParser.newParser(AST.JLS8);
-		parser.setKind(ASTParser.K_COMPILATION_UNIT);
-		@SuppressWarnings("unchecked")
-		Hashtable<String, String> compilerOptions = JavaCore.getOptions();
-		compilerOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
-		parser.setCompilerOptions(compilerOptions);
-		parser.setSource(source.toString().toCharArray());
-		CompilationUnit unit = (CompilationUnit) parser.createAST(null);
-
-		TreeNode root = TreeNode.createRootNode();
-		VariableDeclarationVisitor visitor = new VariableDeclarationVisitor(root, debugMode);
-		unit.accept(visitor);
-
-		if ( debugMode ){
-			System.out.println("===========================================================");
-			System.out.println(" Method arguments, fields and local variables");
-			System.out.println("===========================================================");
-		}
-
-		ArrayList<Scope> scopeList = new ArrayList<Scope>();
-		ArrayList<TreeNode> singleVariableDeclarationNodes = visitor.getListOfSingleVariableDeclarationNodes();
-		for (Iterator<TreeNode> iterator = singleVariableDeclarationNodes.iterator(); iterator.hasNext();) {
-			TreeNode node = iterator.next();
-			scopeList.add(getVariableScopeForSingleVariableDeclarationNode(node));
-		}
-		ArrayList<TreeNode> variableDeclarationFragmentNodes = visitor.getListOfVariableDeclarationFragmentNodes();
-		for (Iterator<TreeNode> iterator = variableDeclarationFragmentNodes.iterator(); iterator.hasNext();) {
-			TreeNode node = iterator.next();
-			scopeList.add(getVariableScopeForDeclarationFragmentNode(node));
-		}
-
-		Collections.sort(scopeList, new ScopeComparator());
-		for (Iterator<Scope> iterator = scopeList.iterator(); iterator.hasNext();) {
-			System.out.print(fileName + "\t");
-			Scope scope = iterator.next();
-			switch ( scope.getKind() ){
-			case Scope.FIELD : System.out.print("F"); break;
-			case Scope.LOCAL_VARIABLE : System.out.print("L"); break;
-			case Scope.METHOD_ARGUMENT : System.out.print("M"); break;
+		ArrayList<String> fileList = new ArrayList<String>();
+		if ( listMode ){
+			BufferedReader reader = new BufferedReader(new FileReader(fileName));
+			String line = null;
+			while ( (line = reader.readLine()) != null ){
+				fileList.add(line);
 			}
-			System.out.println("\t" + scope.getName() + "\t" + scope.getType() + "\t" + unit.getLineNumber(scope.getBegin()) + "\t" + unit.getLineNumber(scope.getEnd()));			
+			reader.close();
+		}
+		else{
+			fileList.add(fileName);
+		}
+		
+		for (Iterator<String> itr = fileList.iterator(); itr.hasNext();) {
+			String file = itr.next();
+			System.err.print("Reading " + file + " ...");
+			BufferedReader reader = new BufferedReader(new FileReader(file));
+			String line = null;
+			StringBuffer source = new StringBuffer();
+			while ( (line = reader.readLine()) != null ){
+				source.append(line);
+				source.append("\n");
+			}
+			reader.close();
+			System.err.println(" done.");
+			System.err.println();
+
+			ASTParser parser = ASTParser.newParser(AST.JLS8);
+			parser.setKind(ASTParser.K_COMPILATION_UNIT);
+			@SuppressWarnings("unchecked")
+			Hashtable<String, String> compilerOptions = JavaCore.getOptions();
+			compilerOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
+			parser.setCompilerOptions(compilerOptions);
+
+			parser.setSource(source.toString().toCharArray());
+			CompilationUnit unit = (CompilationUnit) parser.createAST(null);
+
+			TreeNode root = TreeNode.createRootNode();
+			VariableDeclarationVisitor visitor = new VariableDeclarationVisitor(root, debugMode);
+			unit.accept(visitor);
+
+			if ( debugMode ){
+				System.out.println("===========================================================");
+				System.out.println(" Method arguments, fields and local variables");
+				System.out.println("===========================================================");
+			}
+
+			ArrayList<Scope> scopeList = new ArrayList<Scope>();
+			ArrayList<TreeNode> singleVariableDeclarationNodes = visitor.getListOfSingleVariableDeclarationNodes();
+			for (Iterator<TreeNode> iterator = singleVariableDeclarationNodes.iterator(); iterator.hasNext();) {
+				TreeNode node = iterator.next();
+				Scope sc = getVariableScopeForSingleVariableDeclarationNode(node);
+				if ( !scopeList.contains(sc) ){
+					scopeList.add(sc);
+				}
+			}
+			ArrayList<TreeNode> variableDeclarationFragmentNodes = visitor.getListOfVariableDeclarationFragmentNodes();
+			for (Iterator<TreeNode> iterator = variableDeclarationFragmentNodes.iterator(); iterator.hasNext();) {
+				TreeNode node = iterator.next();
+				Scope sc = getVariableScopeForDeclarationFragmentNode(node);
+				if ( !scopeList.contains(sc) ){
+					scopeList.add(sc);
+				}
+			}
+
+			Collections.sort(scopeList, new ScopeComparator());
+			for (Iterator<Scope> iterator = scopeList.iterator(); iterator.hasNext();) {
+				System.out.print(file + "\t");
+				Scope scope = iterator.next();
+				switch ( scope.getKind() ){
+				case Scope.FIELD : System.out.print("F"); break;
+				case Scope.LOCAL_VARIABLE : System.out.print("L"); break;
+				case Scope.METHOD_ARGUMENT : System.out.print("M"); break;
+				}
+				System.out.println("\t" + scope.getName() + "\t" + scope.getType() + "\t" + unit.getLineNumber(scope.getBegin()) + "\t" + unit.getLineNumber(scope.getEnd()));			
+			}			
 		}
 	}
 

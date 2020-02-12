@@ -23,6 +23,19 @@ public class Scope
 		variableType = aVariableType;
 	}
 
+	public boolean equals(Object aScope)
+	{
+		Scope sc = (Scope)aScope;
+		if ( !variableName.equals(sc.getName()) 
+				|| begin != sc.getBegin() || end != sc.getEnd() 
+				|| kind != sc.getKind() 
+				|| !variableType.equals(sc.getType())
+				){
+			return false;
+		}
+		return true;
+	}
+	
 	/**
 	 * スコープの開始位置（文字配列内の添字）を返す．
 	 * 
