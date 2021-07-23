@@ -16,8 +16,8 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 
 public class Main 
 {
-	public static final String VERSION = "3.0";
-	public static final String COPYRIGHT = "(C) 2015-2020 Hirohisa AMAN <aman@computer.org>";
+	public static final String VERSION = "3.1";
+	public static final String COPYRIGHT = "(C) 2015-2021 Hirohisa AMAN <aman@computer.org>";
 
 	public static void main(String[] args) throws IOException 
 	{
@@ -232,7 +232,8 @@ public class Main
 		String varName = null;
 		for (Iterator<TreeNode> iterator = aNode.getChildren().iterator(); iterator.hasNext();) {
 			TreeNode treeNode = iterator.next();
-			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleName ) {
+			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleName && varName == null ) {
+				// 変数宣言と同時に別の変数を代入することがあるため，SimpleName に該当する名前は最初のものを採用する（varName == null の場合のみ代入）
 				varName = treeNode.getData().toString();
 			}
 			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.Dimension ) {
