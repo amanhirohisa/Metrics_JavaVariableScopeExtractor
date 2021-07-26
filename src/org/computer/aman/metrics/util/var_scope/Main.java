@@ -247,7 +247,8 @@ public class Main
 			scope.setKind(Scope.FIELD);
 			TreeNode node = aNode.getParent();
 			while ( !(node.getData() instanceof org.eclipse.jdt.core.dom.TypeDeclaration ||
-					  node.getData() instanceof org.eclipse.jdt.core.dom.AnonymousClassDeclaration) ){
+					  node.getData() instanceof org.eclipse.jdt.core.dom.AnonymousClassDeclaration ||
+					  node.getData() instanceof org.eclipse.jdt.core.dom.EnumDeclaration ) ){
 				node = node.getParent();
 			}
 
