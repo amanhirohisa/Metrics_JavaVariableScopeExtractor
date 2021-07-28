@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
@@ -16,7 +18,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 
 public class Main 
 {
-	public static final String VERSION = "3.2.1";
+	public static final String VERSION = "3.2.2";
 	public static final String COPYRIGHT = "(C) 2015-2021 Hirohisa AMAN <aman@computer.org>";
 
 	public static void main(String[] args) throws IOException 
@@ -179,7 +181,8 @@ public class Main
 			TreeNode treeNode = iterator.next();
 			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleType  
 					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.PrimitiveType
-					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.ParameterizedType  ) {
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.ParameterizedType 
+					|| treeNode.getData() instanceof org.eclipse.jdt.core.dom.ArrayType ) {
 				varType = treeNode.getData().toString();
 			}
 			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.SimpleName ) {
@@ -189,6 +192,7 @@ public class Main
 				varType += treeNode.getData().toString();
 			}
 		}
+		varType = eraseAnnotation(varType);
 
 		// 可変長引数の場合は配列と見なす
 		if ( aNode.getData().toString().indexOf("...") >= 0 ){
@@ -228,6 +232,7 @@ public class Main
 				varType += treeNode.getData().toString();
 			}
 		}
+		varType = eraseAnnotation(varType);
 
 		String varName = null;
 		for (Iterator<TreeNode> iterator = aNode.getChildren().iterator(); iterator.hasNext();) {
@@ -238,6 +243,7 @@ public class Main
 			}
 			if ( treeNode.getData() instanceof org.eclipse.jdt.core.dom.Dimension ) {
 				varType += treeNode.getData().toString();
+				varType = eraseAnnotation(varType);
 			}
 		}
 
@@ -277,6 +283,28 @@ public class Main
 	}
 
 	/**
+	 * 型名の中にアノテーションが含まれる場合，それを削除する．
+	 * @param aTypeName 型名
+	 * @return アノテーションを削除した型名
+	 */
+	private static String eraseAnnotation(final String aTypeName) 
+	{
+		if ( aTypeName.indexOf('@') == -1 ) {
+			return aTypeName;
+		}
+				
+		String name = new String(aTypeName);
+		while ( name.indexOf('@') != -1 ) {
+			Matcher matcher1 = ANNOTATION_PTN1.matcher(name);
+			name = matcher1.replaceAll("");
+			Matcher matcher2 = ANNOTATION_PTN2.matcher(name);
+			name = matcher2.replaceAll("");
+		}
+		
+		return name;
+	}
+	
+	/**
 	 * エラーメッセージを出力して，アプリケーションを終了させる．
 	 * 
 	 * @param aMessage エラーメッセージ
@@ -287,4 +315,7 @@ public class Main
 		System.err.println(aMessage);
 		System.exit(1);
 	}
+	
+	private static final Pattern ANNOTATION_PTN1 = Pattern.compile("@(\\w)+\\(.+?\\)\\s*");
+	private static final Pattern ANNOTATION_PTN2 = Pattern.compile("@(\\w)+\\s*");
 }
